@@ -5,7 +5,7 @@ from datetime import datetime
 import argparse
 
 
-class GooglephotosMetatadaFixer:
+class GooglephotosMetatadasFixer:
 
     def __init__(self, quiet=False):
         self.nb_processed = 0
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         if not os.path.exists(input_path):
             print(f"File (or directory) does not exist: {input_path}", file=sys.stderr)
             sys.exit(1)
-    fixer = GooglephotosMetatadaFixer(
+    fixer = GooglephotosMetatadasFixer(
         quiet=args.quiet,
     )
     for input_path in input_paths:
