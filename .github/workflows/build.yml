@@ -1,0 +1,92 @@
+name: Build executables
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            create_release: true
+          - os: macos-latest
+            create_release: false
+          - os: windows-latest
+            create_release: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install PyInstaller
+        run: |
+          pip install pyinstaller
+
+      - name: Build executable
+        run: |
+          pyinstaller --onefile googlephotos_metadatas_fixer.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }}-googlephotos-metadatas-fixer
+          path: dist/*
+
+  create_release:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create a release
+        uses: actions/create-release@v1
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release ${{ github.run_number }}
+          body: |
+            Téléchargez les exécutables pour votre système d'exploitation ci-dessous.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  upload_release_assets:
+    runs-on: ${{ matrix.os }}
+    needs: create_release
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.os }}-googlephotos-metadatas-fixer
+
+      - name: Upload executables to release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ matrix.os }}-googlephotos-metadatas-fixer
+          asset_name: ${{ matrix.os }}-googlephotos-metadatas-fixer
+          asset_content_type: application/octet-stream
