@@ -21,12 +21,12 @@ class GooglephotosMetatadaFixer:
         with open(metadata_fpath, 'r', encoding='utf-8') as metadata_file:
             metadata = json.load(metadata_file)
 
-        date_taken = metadata.get("photoTakenTime", {}).get("formatted")
-        if not date_taken:
-            self.log_warn(f'No date in "{metadata_file}"')
+        time_s = metadata.get("photoTakenTime",{}).get("timestamp")
+        if not isinstance(time_s, str) or not time_s.isnumeric():
+            self.log_warn(f'No valid date in "{metadata_file}"')
             return
 
-        self.set_file_dates(media_fpath, date_taken)
+        self.set_file_dates(media_fpath, int(time_s))
 
     def process_directory(self, dirpath: str):
         for root, _, fnames in os.walk(dirpath):
@@ -36,9 +36,8 @@ class GooglephotosMetatadaFixer:
                     self.process_metadata_file(metadata_fpath)
 
 
-    def set_file_dates(self, fpath: str, date: str):
-        timestamp = datetime.strptime(date, "%Y-%m-%d %H:%M:%S").timestamp()
-        os.utime(fpath, (timestamp, timestamp))  # Modification (atime, mtime)
+    def set_file_dates(self, fpath: str, time_s: int):
+        os.utime(fpath, (time_s, time_s))  # Modification (atime, mtime)
         self.log_info(f'File processed "{fpath}"')
         self.nb_processed += 1
     
@@ -56,15 +55,17 @@ class GooglephotosMetatadaFixer:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('paths')
-    parser.add_option('--quiet', action='store_true')
+    parser.add_argument('paths', nargs='*')
+    parser.add_argument('--quiet', action='store_true')
     args = parser.parse_args()
-    input_paths = args.paths
+    input_paths = args.paths or []
     if len(input_paths) == 0:
-        input_paths.append(input('Write path of (or simply drag and drop) directory to process:\n'))
+        res = input('Write path of (or simply drag and drop) directory to process:\n')
+        input_paths.append(res.strip('"'))
     for input_path in input_paths:
         if not os.path.exists(input_path):
             print(f"File (or directory) does not exist: {input_path}", file=sys.stderr)
+            sys.exit(1)
     fixer = GooglephotosMetatadaFixer(
         quiet=args.quiet,
     )
